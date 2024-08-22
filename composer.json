@@ -1,0 +1,32 @@
+{
+    "name": "binghk/jieba",
+    "type": "library",
+    "description": "結巴中文分詞（PHP 版本）：做最好的 PHP 中文分詞、中文斷詞組件",
+    "keywords": ["Jieba", "PHP"],
+    "license": "MIT",
+    "version": "0.1",
+    "authors": [
+        {
+            "name": "coso",
+            "email": "wutongci@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">= 8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "~9.0",
+        "squizlabs/php_codesniffer": "4.0.x-dev",
+        "php-coveralls/php-coveralls": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "bingohk\\Jieba\\": "src/class/"
+        },
+        "files": [
+            "src/vendor/multi-array/MultiArray.php",
+            "src/vendor/multi-array/Factory/MultiArrayFactory.php"
+        ]
+    }
+}
