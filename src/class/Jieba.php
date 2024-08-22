@@ -2,7 +2,7 @@
 /**
  * Jieba.php
  *
- * PHP version 5
+ * PHP version 8.2+
  *
  * @category PHP
  * @package  /src/class/
@@ -12,7 +12,7 @@
  * @link     https://github.com/fukuball/jieba-php
  */
 
-namespace Fukuball\Jieba;
+namespace Bingohk\Jieba;
 
 use Fukuball\Tebru\MultiArray;
 
@@ -30,16 +30,16 @@ define("MIN_FLOAT", -3.14e+100);
  */
 class Jieba
 {
-    public static $total = 0.0;
-    public static $trie = array();
-    public static $FREQ = array();
-    public static $original_freq = array();
-    public static $min_freq = 0.0;
-    public static $route = array();
-    public static $dictname;
-    public static $user_dictname = array();
-    public static $cjk_all = false;
-    public static $dag_cache = array();
+    public static float $total = 0.0;
+    public static array $trie = [];
+    public static array $FREQ = [];
+    public static array $original_freq = [];
+    public static float $min_freq = 0.0;
+    public static array $route = [];
+    public static string $dictname = '';
+    public static array $user_dictname = [];
+    public static bool $cjk_all = false;
+    public static array $dag_cache = [];
 
     /**
      * Static method init
@@ -48,62 +48,53 @@ class Jieba
      *
      * @return void
      */
-    public static function init($options = array())
+    public static function init(array $options = []): void
     {
-        $defaults = array(
+        $defaults = [
             'mode'=>'default',
             'dict'=>'normal',
             'cjk'=>'chinese'
-        );
+        ];
 
         $options = array_merge($defaults, $options);
 
-        if ($options['mode']=='test') {
+        if ($options['mode'] == 'test') {
             echo "Building Trie...\n";
         }
 
-        if ($options['dict']=='small') {
-            $f_name = "dict.small.txt";
-            self::$dictname="dict.small.txt";
-        } elseif ($options['dict']=='big') {
-            $f_name = "dict.big.txt";
-            self::$dictname="dict.big.txt";
-        } else {
-            $f_name = "dict.txt";
-            self::$dictname="dict.txt";
-        }
+        $f_name = match ($options['dict']) {
+            'small' => 'dict.small.txt',
+            'big' => 'dict.big.txt',
+            default => 'dict.txt',
+        };
 
-        if ($options['cjk']=='all') {
-            self::$cjk_all = true;
-        } else {
-            self::$cjk_all = false;
-        }
+        self::$dictname = $f_name;
+
+        self::$cjk_all = $options['cjk'] == 'all';
 
         $t1 = microtime(true);
-        self::$dag_cache = array();
-        self::$trie = Jieba::genTrie(dirname(dirname(__FILE__))."/dict/".$f_name);
+        self::$dag_cache = [];
+        self::$trie = self::genTrie(dirname(dirname(__FILE__))."/dict/".$f_name);
         self::__calcFreq();
 
-        if ($options['mode']=='test') {
-            echo "loading model cost ".(microtime(true) - $t1)." seconds.\n";
-            echo "Trie has been built succesfully.\n";
+        if ($options['mode'] == 'test') {
+            echo "Loading model cost ".(microtime(true) - $t1)." seconds.\n";
+            echo "Trie has been built successfully.\n";
         }
-    }// end function init
+    }
 
     /**
      * Static method __calcFreq
      *
-     * @param void
-     *
      * @return void
      */
-    public static function __calcFreq()
+    public static function __calcFreq(): void
     {
         foreach (self::$original_freq as $key => $value) {
             self::$FREQ[$key] = log($value / self::$total);
         }
         self::$min_freq = min(self::$FREQ);
-    }// end function __calcFreq
+    }
 
     /**
      * Static method calc
@@ -114,31 +105,27 @@ class Jieba
      *
      * @return array self::$route
      */
-    public static function calc($sentence, $DAG, $options = array())
+    public static function calc(string $sentence, array $DAG, array $options = []): array
     {
         $N = mb_strlen($sentence, 'UTF-8');
-        self::$route = array();
-        self::$route[$N] = array($N => 0.0);
-        for ($i=($N-1); $i>=0; $i--) {
-            $candidates = array();
+        self::$route = [];
+        self::$route[$N] = [$N => 0.0];
+        for ($i = ($N - 1); $i >= 0; $i--) {
+            $candidates = [];
             foreach ($DAG[$i] as $x) {
-                $w_c = mb_substr($sentence, $i, (($x+1)-$i), 'UTF-8');
-                $previous_freq = current(self::$route[$x+1]);
-                if (isset(self::$FREQ[$w_c])) {
-                    $current_freq = (float) $previous_freq + self::$FREQ[$w_c];
-                } else {
-                    $current_freq = (float) $previous_freq + self::$min_freq;
-                }
+                $w_c = mb_substr($sentence, $i, (($x + 1) - $i), 'UTF-8');
+                $previous_freq = current(self::$route[$x + 1]);
+                $current_freq = (float) ($previous_freq + (self::$FREQ[$w_c] ?? self::$min_freq));
                 $candidates[$x] = $current_freq;
             }
             arsort($candidates);
             $max_prob = reset($candidates);
             $max_key = key($candidates);
-            self::$route[$i] = array($max_key => $max_prob);
+            self::$route[$i] = [$max_key => $max_prob];
         }
 
         return self::$route;
-    }// end function calc
+    }
 
     /**
      * Static method genTrie
@@ -148,42 +135,36 @@ class Jieba
      *
      * @return array self::$trie
      */
-    public static function genTrie($f_name, $options = array())
+    public static function genTrie(string $f_name, array $options = []): MultiArray
     {
-        $defaults = array(
-            'mode'=>'default'
-        );
+        $defaults = ['mode' => 'default'];
 
         $options = array_merge($defaults, $options);
 
         self::$trie = new MultiArray(file_get_contents($f_name.'.json'));
-        //self::$trie->cache = new MultiArray(file_get_contents($f_name.'.cache.json'));
 
-        $content = fopen($f_name, "r");
+        $content = fopen($f_name, 'r');
+        if ($content === false) {
+            throw new \RuntimeException("Could not open the file: $f_name");
+        }
+
         while (($line = fgets($content)) !== false) {
             $explode_line = explode(" ", trim($line));
             $word = $explode_line[0];
-            $freq = $explode_line[1];
-            $tag = $explode_line[2];
-            $freq = (float) $freq;
+            $freq = (float) $explode_line[1];
+
             if (isset(self::$original_freq[$word])) {
                 self::$total -= self::$original_freq[$word];
             }
+
             self::$original_freq[$word] = $freq;
             self::$total += $freq;
-            //$l = mb_strlen($word, 'UTF-8');
-            //$word_c = array();
-            //for ($i=0; $i<$l; $i++) {
-            //    $c = mb_substr($word, $i, 1, 'UTF-8');
-            //    array_push($word_c, $c);
-            //}
-            //$word_c_key = implode('.', $word_c);
-            //self::$trie->set($word_c_key, array("end"=>""));
         }
+
         fclose($content);
 
         return self::$trie;
-    }// end function genTrie
+    }
 
     /**
      * Static method loadUserDict
@@ -193,36 +174,42 @@ class Jieba
      *
      * @return array self::$trie
      */
-    public static function loadUserDict($f_name, $options = array())
+    public static function loadUserDict(string $f_name, array $options = []): MultiArray
     {
         self::$user_dictname[] = $f_name;
-        $content = fopen($f_name, "r");
+        $content = fopen($f_name, 'r');
+        if ($content === false) {
+            throw new \RuntimeException("Could not open the file: $f_name");
+        }
+
         while (($line = fgets($content)) !== false) {
             $explode_line = explode(" ", trim($line));
             $word = $explode_line[0];
-            $freq = isset($explode_line[1]) ? $explode_line[1] : 1;
-            $tag = isset($explode_line[2]) ? $explode_line[2] : null;
-            $freq = (float) $freq;
+            $freq = isset($explode_line[1]) ? (float) $explode_line[1] : 1.0;
+
             if (isset(self::$original_freq[$word])) {
                 self::$total -= self::$original_freq[$word];
             }
+
             self::$original_freq[$word] = $freq;
             self::$total += $freq;
+
             $l = mb_strlen($word, 'UTF-8');
-            $word_c = array();
-            for ($i=0; $i<$l; $i++) {
-                $c = mb_substr($word, $i, 1, 'UTF-8');
-                $word_c[] = $c;
+            $word_c = [];
+            for ($i = 0; $i < $l; $i++) {
+                $word_c[] = mb_substr($word, $i, 1, 'UTF-8');
             }
+
             $word_c_key = implode('.', $word_c);
-            self::$trie->set($word_c_key, array("end"=>""));
+            self::$trie->set($word_c_key, ["end" => ""]);
         }
+
         fclose($content);
         self::__calcFreq();
-        self::$dag_cache = array();
+        self::$dag_cache = [];
 
         return self::$trie;
-    }// end function loadUserDict
+    }
 
     /**
      * Static method addWord
@@ -233,23 +220,26 @@ class Jieba
      *
      * @return array self::$trie
      */
-    public static function addWord($word, $freq, $tag = '', $options = array())
+    public static function addWord(string $word, float $freq, string $tag = '', array $options = []): MultiArray
     {
         if (isset(self::$original_freq[$word])) {
             self::$total -= self::$original_freq[$word];
         }
+
         self::$original_freq[$word] = $freq;
         self::$total += $freq;
+
         $l = mb_strlen($word, 'UTF-8');
-        $word_c = array();
-        for ($i=0; $i<$l; $i++) {
-            $c = mb_substr($word, $i, 1, 'UTF-8');
-            $word_c[] = $c;
+        $word_c = [];
+        for ($i = 0; $i < $l; $i++) {
+            $word_c[] = mb_substr($word, $i, 1, 'UTF-8');
         }
+
         $word_c_key = implode('.', $word_c);
-        self::$trie->set($word_c_key, array("end"=>""));
+        self::$trie->set($word_c_key, ["end" => ""]);
         self::__calcFreq();
-        self::$dag_cache = array();
+        self::$dag_cache = [];
+
         return self::$trie;
     }
 

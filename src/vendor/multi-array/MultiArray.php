@@ -11,12 +11,7 @@ use InvalidArgumentException;
 use IteratorAggregate;
 use OutOfBoundsException;
 use Traversable;
-
-interface JsonSerializable {
-
-    public function jsonSerialize();
-
-}
+use JsonSerializable;
 
 /**
  * Class MultiArray
@@ -33,22 +28,22 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
     /**
      * How keys will be delimited
      *
-     * @var string $keyDelimiter
+     * @var string
      */
-    private $keyDelimiter;
+    private string $keyDelimiter;
 
     /**
      * Stores array object was created with
-     * @var array $storage
+     * @var array
      */
-    public $storage = array();
+    public array $storage;
 
     /**
      * A cache of keys that have been verified and values
      *
-     * @var array $cache
+     * @var array
      */
-    public $cache = array();
+    public array $cache = [];
 
     /**
      * Constructor
@@ -58,7 +53,7 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @param string $keyDelimiter How array key access will be delimited
      * @throws InvalidArgumentException
      */
-    public function __construct($jsonOrArray, $keyDelimiter = '.')
+    public function __construct(array|string $jsonOrArray, string $keyDelimiter = '.')
     {
         if (is_string($jsonOrArray)) {
             $jsonOrArray = json_decode($jsonOrArray, true);
@@ -85,9 +80,9 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @param string $keyString
      * @return bool
      */
-    public function exists($keyString)
+    public function exists(string $keyString): bool
     {
-        if (true === $this->inCache($keyString)) {
+        if ($this->inCache($keyString)) {
             return true;
         }
 
@@ -106,13 +101,13 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * example:
      *     $jsonObject->get('key1.key2');
      *
-     * @param $keyString
+     * @param string $keyString
      * @return mixed
      * @throws OutOfBoundsException If the key does not exist
      */
-    public function get($keyString)
+    public function get(string $keyString): mixed
     {
-        if (true === $this->inCache($keyString)) {
+        if ($this->inCache($keyString)) {
             return $this->cache[$keyString];
         }
 
@@ -133,7 +128,7 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @param mixed $value
      * @throws InvalidArgumentException
      */
-    public function set($keyString, $value)
+    public function set(string $keyString, mixed $value): void
     {
         $keys = $this->getKeys($keyString);
         $this->setValue($keys, $this->storage, $value);
@@ -148,10 +143,10 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * example:
      *     $jsonObject->remove('key1.key2');
      *
-     * @param string$keyString
+     * @param string $keyString
      * @throws OutOfBoundsException
      */
-    public function remove($keyString)
+    public function remove(string $keyString): void
     {
         if (!$this->exists($keyString)) {
             throw new OutOfBoundsException(self::EXCEPTION_KEY_MISSING);
@@ -171,7 +166,7 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @param string $keyString
      * @return array
      */
-    private function getKeys($keyString)
+    private function getKeys(string $keyString): array
     {
         return explode($this->keyDelimiter, $keyString);
     }
@@ -187,7 +182,7 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @return mixed
      * @throws OutOfBoundsException If the key doesn't exist
      */
-    private function getValue(array &$keys, &$element)
+    private function getValue(array &$keys, mixed &$element): mixed
     {
         $checkKey = array_shift($keys);
 
@@ -211,7 +206,7 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @return mixed
      * @throws InvalidArgumentException If we try to set a key on a non-array
      */
-    private function setValue(array &$keys, &$element, &$value)
+    private function setValue(array &$keys, mixed &$element, mixed &$value): mixed
     {
         $checkKey = array_shift($keys);
 
@@ -225,20 +220,18 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
             } else {
                 if (!is_array($element[$checkKey])) {
                     $temp_value = $element[$checkKey];
-                    $element[$checkKey] = array();
-                    array_push($element[$checkKey], $temp_value);
-                    array_push($element[$checkKey], $value);
+                    $element[$checkKey] = [$temp_value];
+                    $element[$checkKey][] = $value;
                 } else {
-                    array_push($element[$checkKey], $value);
+                    $element[$checkKey][] = $value;
                 }
-
             }
 
             return $element[$checkKey];
         }
 
         if (!isset($element[$checkKey])) {
-            $element[$checkKey] = array();
+            $element[$checkKey] = [];
         }
 
         if (!is_array($element[$checkKey])) {
@@ -246,18 +239,17 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
         } else {
             return $this->setValue($keys, $element[$checkKey], $value);
         }
-
     }
 
     /**
      * Unset a key
      *
      * @param array $keys
-     * @param $element
-     * @return null
+     * @param mixed $element
+     * @return void
      * @throws OutOfBoundsException If the key doesn't exist
      */
-    private function unsetValue(array &$keys, &$element)
+    private function unsetValue(array &$keys, mixed &$element): void
     {
         $checkKey = array_shift($keys);
 
@@ -267,11 +259,10 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
 
         if (empty($keys)) {
             unset($element[$checkKey]);
-
-            return null;
+            return;
         }
 
-        return $this->unsetValue($keys, $element[$checkKey]);
+        $this->unsetValue($keys, $element[$checkKey]);
     }
 
     /**
@@ -280,54 +271,50 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * @param string $keyString
      * @return bool
      */
-    private function inCache($keyString)
+    private function inCache(string $keyString): bool
     {
         return isset($this->cache[$keyString]);
     }
 
     /**
-     * (PHP 5 &gt;= 5.0.0)<br/>
      * Retrieve an external iterator
      * @link http://php.net/manual/en/iteratoraggregate.getiterator.php
      * @return Traversable An instance of an object implementing <b>Iterator</b> or
      * <b>Traversable</b>
      */
-    public function getIterator() : Traversable
+    public function getIterator(): Traversable
     {
         return new ArrayIterator($this->storage);
     }
 
     /**
-     * (PHP 5 &gt;= 5.4.0)<br/>
      * Specify data which should be serialized to JSON
      * @link http://php.net/manual/en/jsonserializable.jsonserialize.php
      * @return mixed data which can be serialized by <b>json_encode</b>,
      * which is a value of any type other than a resource.
      */
-    function jsonSerialize()
+    public function jsonSerialize(): mixed
     {
         return $this->storage;
     }
 
     /**
-     * (PHP 5 &gt;= 5.0.0)<br/>
      * Whether a offset exists
      * @link http://php.net/manual/en/arrayaccess.offsetexists.php
      * @param mixed $offset <p>
      * An offset to check for.
      * </p>
-     * @return boolean true on success or false on failure.
+     * @return bool true on success or false on failure.
      * </p>
      * <p>
      * The return value will be casted to boolean if non-boolean was returned.
      */
-    public function offsetExists($offset) : bool
+    public function offsetExists(mixed $offset): bool
     {
         return $this->exists($offset);
     }
 
     /**
-     * (PHP 5 &gt;= 5.0.0)<br/>
      * Offset to retrieve
      * @link http://php.net/manual/en/arrayaccess.offsetget.php
      * @param mixed $offset <p>
@@ -335,13 +322,12 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * </p>
      * @return mixed Can return all value types.
      */
-    public function offsetGet($offset) : mixed
+    public function offsetGet(mixed $offset): mixed
     {
         return $this->get($offset);
     }
 
     /**
-     * (PHP 5 &gt;= 5.0.0)<br/>
      * Offset to set
      * @link http://php.net/manual/en/arrayaccess.offsetset.php
      * @param mixed $offset <p>
@@ -352,13 +338,12 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * </p>
      * @return void
      */
-    public function offsetSet($offset, $value) : void
+    public function offsetSet(mixed $offset, mixed $value): void
     {
         $this->set($offset, $value);
     }
 
     /**
-     * (PHP 5 &gt;= 5.0.0)<br/>
      * Offset to unset
      * @link http://php.net/manual/en/arrayaccess.offsetunset.php
      * @param mixed $offset <p>
@@ -366,7 +351,7 @@ class MultiArray implements IteratorAggregate, JsonSerializable, ArrayAccess
      * </p>
      * @return void
      */
-    public function offsetUnset($offset) : void
+    public function offsetUnset(mixed $offset): void
     {
         $this->remove($offset);
     }

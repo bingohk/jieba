@@ -1,8 +1,8 @@
 <?php
-use Fukuball\Jieba\Jieba;
-use Fukuball\Jieba\Finalseg;
-use Fukuball\Jieba\JiebaAnalyse;
-use Fukuball\Jieba\Posseg;
+use Bingohk\Jieba\Jieba;
+use Bingohk\Jieba\Finalseg;
+use Bingohk\Jieba\JiebaAnalyse;
+use Bingohk\Jieba\Posseg;
 use PHPUnit\Framework\TestCase;
 
 class JiebaTest extends TestCase
